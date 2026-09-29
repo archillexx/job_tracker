@@ -1,11 +1,21 @@
 import { useState } from 'react'
-const JobCard = ({ jobName, jobRole, jobStatus }) => {
+const JobCard = ({ jobName, jobRole, jobStatus, jobId, onStatusChange }) => {
 
     return (
         <div>
             <h3>{jobName}</h3>
             <h5>{jobRole}</h5>
             <h6>{jobStatus}</h6>
+            
+            <select value={jobStatus} onChange={(e)=>onStatusChange(jobId,e.target.value)}>
+                <option>Applied</option>
+                <option>Rejected</option>
+                <option>Considering</option>
+                <option>Ghosted</option>
+                <option>Replied</option>
+                <option>Interview</option>
+            </select>
+           
         </div>
     )
 }
@@ -55,6 +65,13 @@ const JobList = () => {
         setCompanyName("")
         setJobRole("")
     }
+    const changeStatus = (jobId,newStatus) => {
+        setJobArray(
+            jobArray.map((job)=>job.jobId === jobId ? {...job,jobStatus:newStatus} : job 
+            )
+        )
+    }
+
 
 
     return (
@@ -62,7 +79,7 @@ const JobList = () => {
 
             {jobArray.map((item) => {
 
-                return (<JobCard key={item.jobId} jobName={item.jobName} jobRole={item.jobRole} jobStatus={item.jobStatus}></JobCard>)
+                return (<JobCard key={item.jobId} jobName={item.jobName} jobRole={item.jobRole} jobStatus={item.jobStatus} jobId={item.jobId} onStatusChange={changeStatus}></JobCard>)
 
             })}
             <div>
