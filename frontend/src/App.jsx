@@ -2,12 +2,12 @@ import { useState } from 'react'
 const JobCard = ({ jobName, jobRole, jobStatus, jobId, onStatusChange }) => {
 
     return (
-        <div>
-            <h3>{jobName}</h3>
-            <h5>{jobRole}</h5>
-            <h6>{jobStatus}</h6>
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-900">{jobName}</h3>
+            <h5 className="text-sm text-gray-600">{jobRole}</h5>
+            <h6 className="mt-2 text-xs font-medium uppercase tracking-wide text-indigo-600">{jobStatus}</h6>
             
-            <select value={jobStatus} onChange={(e)=>onStatusChange(jobId,e.target.value)}>
+            <select className="mt-2 w-full rounded-md border border-gray-300 px-2 py-1 text-sm" value={jobStatus} onChange={(e)=>onStatusChange(jobId,e.target.value)}>
                 <option>Applied</option>
                 <option>Rejected</option>
                 <option>Considering</option>
@@ -75,19 +75,19 @@ const JobList = () => {
 
 
     return (
-        <div>
+        <div className="space-y-4">
 
             {jobArray.map((item) => {
 
                 return (<JobCard key={item.jobId} jobName={item.jobName} jobRole={item.jobRole} jobStatus={item.jobStatus} jobId={item.jobId} onStatusChange={changeStatus}></JobCard>)
 
             })}
-            <div>
-                <form onSubmit={addJob}>
-                    <h4>Add Job</h4>
-                    <input type="text" value={companyName} placeholder='Company Name' onChange={(e) => setCompanyName(e.target.value)} />
-                    <input type="text" value={jobRole} placeholder='Job Role' onChange={(e) => setJobRole(e.target.value)} />
-                    <button>Submit</button>
+            <div className="rounded-lg border border-dashed border-gray-300 p-4">
+                <form className="flex flex-col gap-2 sm:flex-row sm:items-end" onSubmit={addJob}>
+                    <h4 className="font-semibold text-gray-900 sm:mr-2">Add Job</h4>
+                    <input className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm" type="text" value={companyName} placeholder='Company Name' onChange={(e) => setCompanyName(e.target.value)} />
+                    <input className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm" type="text" value={jobRole} placeholder='Job Role' onChange={(e) => setJobRole(e.target.value)} />
+                    <button className="rounded-md bg-indigo-600 px-3 py-1 text-sm font-medium text-white hover:bg-indigo-700">Submit</button>
                 </form>
 
 
@@ -100,8 +100,8 @@ const JobList = () => {
 
 const App = () => {
     return (
-        <div>
-            <h1> Job Tracker </h1>
+        <div className="mx-auto min-h-screen max-w-2xl bg-gray-50 p-6">
+            <h1 className="mb-6 text-3xl font-bold text-gray-900"> Job Tracker </h1>
             <JobList></JobList>
         </div>
 
