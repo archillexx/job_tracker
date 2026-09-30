@@ -1,9 +1,9 @@
 import { useState } from 'react'
-const JobCard = ({ jobName, jobRole, jobStatus, jobId, onStatusChange }) => {
+const JobCard = ({ companyName, jobRole, jobStatus, jobId, onStatusChange }) => {
 
     return (
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-            <h3 className="text-lg font-semibold text-gray-900">{jobName}</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{companyName}</h3>
             <h5 className="text-sm text-gray-600">{jobRole}</h5>
             <h6 className="mt-2 text-xs font-medium uppercase tracking-wide text-indigo-600">{jobStatus}</h6>
             
@@ -23,19 +23,19 @@ const JobCard = ({ jobName, jobRole, jobStatus, jobId, onStatusChange }) => {
 let jobs = [
     {
         jobId: 1,
-        jobName: "Cognizant",
+        companyName: "Cognizant",
         jobRole: "Software Dev",
         jobStatus: "Applied"
     },
     {
         jobId: 2,
-        jobName: "Google",
+        companyName: "Google",
         jobRole: "Software Dev",
         jobStatus: "Applied"
     },
     {
         jobId: 3,
-        jobName: "Apple",
+        companyName: "Apple",
         jobRole: "Software Dev",
         jobStatus: "Applied"
     }
@@ -56,7 +56,7 @@ const JobList = () => {
 
         const newJob = {
             jobId: jobArray.length + 1,
-            jobName: companyName,
+            companyName: companyName,
             jobRole: jobRole,
             jobStatus: "Applied"
         }
@@ -79,7 +79,7 @@ const JobList = () => {
 
             {jobArray.map((item) => {
 
-                return (<JobCard key={item.jobId} jobName={item.jobName} jobRole={item.jobRole} jobStatus={item.jobStatus} jobId={item.jobId} onStatusChange={changeStatus}></JobCard>)
+                return (<JobCard key={item.jobId} companyName={item.companyName} jobRole={item.jobRole} jobStatus={item.jobStatus} jobId={item.jobId} onStatusChange={changeStatus}></JobCard>)
 
             })}
             <div className="rounded-lg border border-dashed border-gray-300 p-4">
