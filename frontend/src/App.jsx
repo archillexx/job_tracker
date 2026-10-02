@@ -1,4 +1,8 @@
 import { useEffect, useState } from 'react'
+
+// The API's address comes from an environment variable (see .env.development).
+const API_URL = import.meta.env.VITE_API_URL
+
 const JobCard = ({ companyName, jobRole, jobStatus, jobId, onStatusChange }) => {
 
     return (
@@ -32,7 +36,7 @@ const JobList = () => {
     // Load the jobs from the server once, when JobList first appears.
     useEffect(() => {
         const loadJobs = async () => {
-            const response = await fetch("http://127.0.0.1:8000/jobs")
+            const response = await fetch(`${API_URL}/jobs`)
             const data = await response.json()
             setJobArray(data)
         }
@@ -41,17 +45,21 @@ const JobList = () => {
 
 
 
-    const addJob = (e) => {
+    const addJob = async (e) => {
         e.preventDefault()
 
-        const newJob = {
-            jobId: jobArray.length + 1,
-            companyName: companyName,
-            jobRole: jobRole,
-            jobStatus: "Applied"
-        }
+        // Quick check for the user; the server's Pydantic model is the real one.
+        if (!companyName.trim() || !jobRole.trim()) return
 
-        setJobArray([...jobArray, newJob])
+        const response = await fetch(`${API_URL}/jobs`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ companyName, jobRole }),
+        })
+        if (!response.ok) return
+
+        const savedJob = await response.json()
+        setJobArray([...jobArray, savedJob])
         setCompanyName("")
         setJobRole("")
     }
