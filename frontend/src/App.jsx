@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 const JobCard = ({ companyName, jobRole, jobStatus, jobId, onStatusChange }) => {
 
     return (
@@ -20,34 +20,24 @@ const JobCard = ({ companyName, jobRole, jobStatus, jobId, onStatusChange }) => 
     )
 }
 
-let jobs = [
-    {
-        jobId: 1,
-        companyName: "Cognizant",
-        jobRole: "Software Dev",
-        jobStatus: "Applied"
-    },
-    {
-        jobId: 2,
-        companyName: "Google",
-        jobRole: "Software Dev",
-        jobStatus: "Applied"
-    },
-    {
-        jobId: 3,
-        companyName: "Apple",
-        jobRole: "Software Dev",
-        jobStatus: "Applied"
-    }
-]
 
 
 
 const JobList = () => {
 
-    const [jobArray, setJobArray] = useState(jobs)
+    const [jobArray, setJobArray] = useState([])
     const [companyName, setCompanyName] = useState("")
     const [jobRole, setJobRole] = useState("")
+
+    // Load the jobs from the server once, when JobList first appears.
+    useEffect(() => {
+        const loadJobs = async () => {
+            const response = await fetch("http://127.0.0.1:8000/jobs")
+            const data = await response.json()
+            setJobArray(data)
+        }
+        loadJobs()
+    }, [])
 
 
 

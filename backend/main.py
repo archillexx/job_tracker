@@ -1,9 +1,18 @@
 from typing import Literal
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 app = FastAPI()
+
+# Let the React dev server (a different origin) read this API's responses.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 # Temporary in-memory data: lost on every server restart.
 # Section 4 moves this into Postgres.
