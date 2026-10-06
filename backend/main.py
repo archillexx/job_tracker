@@ -1,8 +1,13 @@
 from typing import Literal
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from database import SessionLocal
+from models import Job
 
 app = FastAPI()
 
@@ -13,14 +18,6 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
-
-# Temporary in-memory data: lost on every server restart.
-# Section 4 moves this into Postgres.
-jobs = [
-    {"jobId": 1, "companyName": "Cognizant", "jobRole": "Software Dev", "jobStatus": "Applied"},
-    {"jobId": 2, "companyName": "Google", "jobRole": "Software Dev", "jobStatus": "Applied"},
-    {"jobId": 3, "companyName": "Apple", "jobRole": "Software Dev", "jobStatus": "Applied"},
-]
 
 JobStatus = Literal["Considering", "Applied", "Replied", "Interview", "Rejected", "Ghosted"]
 
@@ -35,13 +32,39 @@ class JobIn(BaseModel):
     jobStatus: JobStatus = "Applied"
 
 
+def get_db():
+    """Give each request its own database session, and always close it afterwards."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def job_to_api(job: Job) -> dict:
+    """Turn a database row (snake_case columns) into the JSON shape React expects."""
+    return {
+        "jobId": job.id,
+        "companyName": job.company_name,
+        "jobRole": job.job_role,
+        "jobStatus": job.job_status,
+    }
+
+
 @app.get("/jobs")
-def list_jobs():
-    return jobs
+def list_jobs(db: Session = Depends(get_db)):
+    jobs = db.scalars(select(Job).order_by(Job.id)).all()
+    return [job_to_api(job) for job in jobs]
 
 
 @app.post("/jobs", status_code=201)
-def create_job(job: JobIn):
-    new_job = {"jobId": len(jobs) + 1, **job.model_dump()}
-    jobs.append(new_job)
-    return new_job
+def create_job(job_in: JobIn, db: Session = Depends(get_db)):
+    job = Job(
+        company_name=job_in.companyName,
+        job_role=job_in.jobRole,
+        job_status=job_in.jobStatus,
+    )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
+    return job_to_api(job)
