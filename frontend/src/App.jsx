@@ -76,11 +76,17 @@ const JobList = () => {
         setJobDescription("")
         setResumeText("")
     }
-    const changeStatus = (jobId,newStatus) => {
-        setJobArray(
-            jobArray.map((job)=>job.jobId === jobId ? {...job,jobStatus:newStatus} : job 
-            )
-        )
+    // Save the new status on the server first; only update the card once it's saved.
+    const changeStatus = async (jobId, newStatus) => {
+        const response = await fetch(`${API_URL}/jobs/${jobId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ jobStatus: newStatus }),
+        })
+        if (!response.ok) return
+
+        const savedJob = await response.json()
+        setJobArray((jobs) => jobs.map((job) => job.jobId === jobId ? savedJob : job))
     }
 
 

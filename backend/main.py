@@ -1,6 +1,6 @@
 from typing import Literal
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
@@ -15,11 +15,17 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["Content-Type"],
 )
 
 JobStatus = Literal["Considering", "Applied", "Replied", "Interview", "Rejected", "Ghosted"]
+
+
+class JobStatusUpdate(BaseModel):
+    """What a client sends to change a job's status."""
+
+    jobStatus: JobStatus
 
 
 class JobIn(BaseModel):
@@ -72,6 +78,17 @@ def create_job(job_in: JobIn, db: Session = Depends(get_db)):
         resume_text=job_in.resumeText or None,
     )
     db.add(job)
+    db.commit()
+    db.refresh(job)
+    return job_to_api(job)
+
+
+@app.patch("/jobs/{job_id}")
+def update_job_status(job_id: int, update: JobStatusUpdate, db: Session = Depends(get_db)):
+    job = db.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job.job_status = update.jobStatus
     db.commit()
     db.refresh(job)
     return job_to_api(job)
