@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, func
+from sqlalchemy import CheckConstraint, DateTime, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
@@ -16,7 +16,7 @@ class Job(Base):
             "job_status IN ('Considering', 'Applied', 'Replied', 'Interview', 'Rejected', 'Ghosted')",
             name="job_status_allowed",
         ),
-    )
+    )  
 
     id: Mapped[int] = mapped_column(primary_key=True)
     company_name: Mapped[str]
@@ -25,3 +25,6 @@ class Job(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    # Pasted text, so they can be long; optional, since jobs can be saved before pasting.
+    job_description: Mapped[str | None] = mapped_column(Text)
+    resume_text: Mapped[str | None] = mapped_column(Text)

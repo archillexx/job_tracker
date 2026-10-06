@@ -30,6 +30,8 @@ class JobIn(BaseModel):
     companyName: str = Field(min_length=1)
     jobRole: str = Field(min_length=1)
     jobStatus: JobStatus = "Applied"
+    jobDescription: str | None = None
+    resumeText: str | None = None
 
 
 def get_db():
@@ -48,6 +50,8 @@ def job_to_api(job: Job) -> dict:
         "companyName": job.company_name,
         "jobRole": job.job_role,
         "jobStatus": job.job_status,
+        "jobDescription": job.job_description,
+        "resumeText": job.resume_text,
     }
 
 
@@ -63,6 +67,9 @@ def create_job(job_in: JobIn, db: Session = Depends(get_db)):
         company_name=job_in.companyName,
         job_role=job_in.jobRole,
         job_status=job_in.jobStatus,
+        # A blank box arrives as "" after stripping; store it as NULL ("not pasted").
+        job_description=job_in.jobDescription or None,
+        resume_text=job_in.resumeText or None,
     )
     db.add(job)
     db.commit()
