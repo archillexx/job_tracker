@@ -1,4 +1,20 @@
 
+from collections import Counter
+
+def most_missed_skills(jobs,my_skills):
+
+    tally = Counter()
+    if not jobs:
+        return []
+    for job in jobs:
+        _,missing_skills = fit_score(job,my_skills)
+        tally.update(missing_skills)
+    
+    return tally.most_common()
+
+
+
+
 def to_lower_case(skills):
 
     lower_case_skills = []
@@ -22,6 +38,7 @@ def fit_score(j_skills,r_skills):
 
         
         return score,missing_skills
+
 
 
 if __name__ == "__main__":

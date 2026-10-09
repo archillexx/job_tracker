@@ -1,5 +1,6 @@
 
 from scoring import fit_score
+from scoring import most_missed_skills
 
 def test_normal_overlap():
     jobSkills = ["react","java"]
@@ -33,3 +34,23 @@ def test_duplicates():
     assert fit_score(jobSkills,resumeSkills) == (50,["c++","java"])
 
 
+
+def test_normal_gap():
+    jobs = [["react","java","C++"],["react","java","C","python","c++"],["react","java","C","python","c++","aws"]]
+    my_skills = ["react","java","C","python"]
+    assert most_missed_skills(jobs,my_skills) == [('c++', 3), ('aws', 1)]
+
+def test_empty_jobs():
+    jobs = []
+    my_skills = ["react","java","C","python"]
+    assert most_missed_skills(jobs,my_skills) == []
+
+def test_no_gap():
+    jobs = [["react","java","C++"],["react","java","C","python","c++"],["react","java","C","python","c++","aws"]]
+    my_skills = ["react","java","C","python","c++","aws"]
+    assert most_missed_skills(jobs,my_skills) == []
+
+def test_duplicate_gap():
+    jobs = [["react","java","C++","c++"],["react","java","C","python","c++"],["react","java","C","python","c++","aws"]]
+    my_skills = ["react","java","C","python"]
+    assert most_missed_skills(jobs,my_skills) == [('c++', 3), ('aws', 1)]
