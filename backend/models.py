@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, Text, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from database import Base
@@ -28,3 +28,37 @@ class Job(Base):
     # Pasted text, so they can be long; optional, since jobs can be saved before pasting.
     job_description: Mapped[str | None] = mapped_column(Text)
     resume_text: Mapped[str | None] = mapped_column(Text)
+
+
+class Skill(Base):
+    """One distinct skill name, stored once and shared by jobs and my profile."""
+
+    __tablename__ = "skills"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(unique=True)
+
+
+class JobSkill(Base):
+    """Join table: one row = 'this job requires this skill'."""
+
+    __tablename__ = "job_skills"
+
+    # Two-column primary key, so the same job-skill pair can't be stored twice.
+    # CASCADE: deleting a job (or skill) deletes its links too.
+    job_id: Mapped[int] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"), primary_key=True
+    )
+    skill_id: Mapped[int] = mapped_column(
+        ForeignKey("skills.id", ondelete="CASCADE"), primary_key=True
+    )
+
+
+class ProfileSkill(Base):
+    """One row = 'I have this skill'. Single user, so no user column."""
+
+    __tablename__ = "profile_skills"
+
+    skill_id: Mapped[int] = mapped_column(
+        ForeignKey("skills.id", ondelete="CASCADE"), primary_key=True
+    )
