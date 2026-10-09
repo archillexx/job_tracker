@@ -65,6 +65,27 @@ const JobCard = ({ companyName, jobRole, jobStatus, jobId, jobDescription, resum
 
 
 
+// My most-missed skills across all jobs, most-missed first.
+const GapList = ({ gaps }) => {
+    return (
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <h4 className="font-semibold text-gray-900">Most-missed skills</h4>
+            {gaps.length === 0 ? (
+                <p className="mt-2 text-sm text-gray-500">No gaps yet. Add skills to your jobs to see them here.</p>
+            ) : (
+                <ol className="mt-2 space-y-1 text-sm">
+                    {gaps.map((gap) => (
+                        <li key={gap.skill} className="flex justify-between">
+                            <span className="text-gray-900">{gap.skill}</span>
+                            <span className="text-gray-500">{gap.count} {gap.count === 1 ? "job" : "jobs"}</span>
+                        </li>
+                    ))}
+                </ol>
+            )}
+        </div>
+    )
+}
+
 const JobList = () => {
 
     const [jobArray, setJobArray] = useState([])
@@ -73,10 +94,17 @@ const JobList = () => {
     const [jobDescription, setJobDescription] = useState("")
     const [resumeText, setResumeText] = useState("")
     const [mySkills, setMySkills] = useState(null)  // null = not loaded yet
+    const [gaps, setGaps] = useState([])
 
     const loadJobs = async () => {
         const response = await fetch(`${API_URL}/jobs`)
         setJobArray(await response.json())
+    }
+
+    // Gaps depend on everyone's skills, so this reloads after any skills save.
+    const loadGaps = async () => {
+        const response = await fetch(`${API_URL}/gaps`)
+        setGaps(await response.json())
     }
 
     // Load the jobs and my skills from the server once, when JobList first appears.
@@ -87,6 +115,7 @@ const JobList = () => {
         }
         loadJobs()
         loadMySkills()
+        loadGaps()
     }, [])
 
 
@@ -135,6 +164,7 @@ const JobList = () => {
 
         const savedJob = await response.json()
         setJobArray((jobs) => jobs.map((job) => job.jobId === jobId ? savedJob : job))
+        loadGaps()
     }
 
     // My skills change every job's score, so reload all the jobs after saving.
@@ -148,6 +178,7 @@ const JobList = () => {
 
         setMySkills((await response.json()).skills)
         loadJobs()
+        loadGaps()
     }
 
 
@@ -161,6 +192,8 @@ const JobList = () => {
                     <SkillsEditor initialSkills={mySkills} placeholder="Your skills, comma-separated" onSave={saveMySkills} />
                 )}
             </div>
+
+            <GapList gaps={gaps} />
 
             {jobArray.map((item) => {
 

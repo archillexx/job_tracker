@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from database import SessionLocal
 from models import Job, JobSkill, ProfileSkill, Skill
-from scoring import fit_score, to_lower_case
+from scoring import fit_score, most_missed_skills, to_lower_case
 
 app = FastAPI()
 
@@ -162,3 +162,11 @@ def set_profile_skills(skills_in: SkillsIn, db: Session = Depends(get_db)):
     db.add_all(ProfileSkill(skill_id=s.id) for s in skills)
     db.commit()
     return {"skills": profile_skill_names(db)}
+
+
+@app.get("/gaps")
+def list_gaps(db: Session = Depends(get_db)):
+    """My most-missed skills across all jobs, ranked by your most_missed_skills."""
+    jobs = list(job_skill_names(db).values())
+    ranked = most_missed_skills(jobs, profile_skill_names(db))
+    return [{"skill": skill, "count": count} for skill, count in ranked]
