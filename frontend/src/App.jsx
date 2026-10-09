@@ -3,7 +3,24 @@ import { useEffect, useState } from 'react'
 // The API's address comes from an environment variable (see .env.development).
 const API_URL = import.meta.env.VITE_API_URL
 
-const JobCard = ({ companyName, jobRole, jobStatus, jobId, jobDescription, resumeText, onStatusChange }) => {
+// A comma-separated text box for a list of skills, saved with one button.
+const SkillsEditor = ({ initialSkills, placeholder, onSave }) => {
+    const [text, setText] = useState(initialSkills.join(", "))
+
+    const save = (e) => {
+        e.preventDefault()
+        onSave(text.split(","))
+    }
+
+    return (
+        <form className="mt-2 flex gap-2" onSubmit={save}>
+            <input className="flex-1 rounded-md border border-gray-300 px-2 py-1 text-sm" type="text" value={text} placeholder={placeholder} onChange={(e) => setText(e.target.value)} />
+            <button className="rounded-md bg-indigo-600 px-3 py-1 text-sm font-medium text-white hover:bg-indigo-700">Save</button>
+        </form>
+    )
+}
+
+const JobCard = ({ companyName, jobRole, jobStatus, jobId, jobDescription, resumeText, skills, fitScore, missingSkills, onStatusChange, onSkillsSave }) => {
 
     return (
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
@@ -19,6 +36,18 @@ const JobCard = ({ companyName, jobRole, jobStatus, jobId, jobDescription, resum
                 <option>Replied</option>
                 <option>Interview</option>
             </select>
+
+            <div className="mt-3 text-sm">
+                {fitScore === null ? (
+                    <p className="text-gray-500">No skills listed yet</p>
+                ) : (
+                    <p className="font-medium text-gray-900">{Math.round(fitScore)}% fit</p>
+                )}
+                {missingSkills.length > 0 && (
+                    <p className="text-red-600">Missing: {missingSkills.join(", ")}</p>
+                )}
+            </div>
+            <SkillsEditor initialSkills={skills} placeholder="Required skills, comma-separated" onSave={(list) => onSkillsSave(jobId, list)} />
 
             {jobDescription && (
                 <p className="mt-3 line-clamp-3 whitespace-pre-line text-sm text-gray-700">{jobDescription}</p>
@@ -43,15 +72,21 @@ const JobList = () => {
     const [jobRole, setJobRole] = useState("")
     const [jobDescription, setJobDescription] = useState("")
     const [resumeText, setResumeText] = useState("")
+    const [mySkills, setMySkills] = useState(null)  // null = not loaded yet
 
-    // Load the jobs from the server once, when JobList first appears.
+    const loadJobs = async () => {
+        const response = await fetch(`${API_URL}/jobs`)
+        setJobArray(await response.json())
+    }
+
+    // Load the jobs and my skills from the server once, when JobList first appears.
     useEffect(() => {
-        const loadJobs = async () => {
-            const response = await fetch(`${API_URL}/jobs`)
-            const data = await response.json()
-            setJobArray(data)
+        const loadMySkills = async () => {
+            const response = await fetch(`${API_URL}/profile/skills`)
+            setMySkills((await response.json()).skills)
         }
         loadJobs()
+        loadMySkills()
     }, [])
 
 
@@ -89,14 +124,47 @@ const JobList = () => {
         setJobArray((jobs) => jobs.map((job) => job.jobId === jobId ? savedJob : job))
     }
 
+    // Same pattern for a job's skills: the server sends back the job with its new score.
+    const saveJobSkills = async (jobId, skillList) => {
+        const response = await fetch(`${API_URL}/jobs/${jobId}/skills`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ skills: skillList }),
+        })
+        if (!response.ok) return
+
+        const savedJob = await response.json()
+        setJobArray((jobs) => jobs.map((job) => job.jobId === jobId ? savedJob : job))
+    }
+
+    // My skills change every job's score, so reload all the jobs after saving.
+    const saveMySkills = async (skillList) => {
+        const response = await fetch(`${API_URL}/profile/skills`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ skills: skillList }),
+        })
+        if (!response.ok) return
+
+        setMySkills((await response.json()).skills)
+        loadJobs()
+    }
+
 
 
     return (
         <div className="space-y-4">
 
+            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <h4 className="font-semibold text-gray-900">My skills</h4>
+                {mySkills !== null && (
+                    <SkillsEditor initialSkills={mySkills} placeholder="Your skills, comma-separated" onSave={saveMySkills} />
+                )}
+            </div>
+
             {jobArray.map((item) => {
 
-                return (<JobCard key={item.jobId} companyName={item.companyName} jobRole={item.jobRole} jobStatus={item.jobStatus} jobId={item.jobId} jobDescription={item.jobDescription} resumeText={item.resumeText} onStatusChange={changeStatus}></JobCard>)
+                return (<JobCard key={item.jobId} companyName={item.companyName} jobRole={item.jobRole} jobStatus={item.jobStatus} jobId={item.jobId} jobDescription={item.jobDescription} resumeText={item.resumeText} skills={item.skills} fitScore={item.fitScore} missingSkills={item.missingSkills} onStatusChange={changeStatus} onSkillsSave={saveJobSkills}></JobCard>)
 
             })}
             <div className="rounded-lg border border-dashed border-gray-300 p-4">

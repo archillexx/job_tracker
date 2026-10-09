@@ -3,11 +3,12 @@ from typing import Literal
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from database import SessionLocal
-from models import Job
+from models import Job, JobSkill, ProfileSkill, Skill
+from scoring import fit_score, to_lower_case
 
 app = FastAPI()
 
@@ -15,7 +16,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PATCH", "PUT"],
     allow_headers=["Content-Type"],
 )
 
@@ -40,6 +41,12 @@ class JobIn(BaseModel):
     resumeText: str | None = None
 
 
+class SkillsIn(BaseModel):
+    """A full list of skill names; it replaces whatever was saved before."""
+
+    skills: list[str]
+
+
 def get_db():
     """Give each request its own database session, and always close it afterwards."""
     db = SessionLocal()
@@ -49,8 +56,38 @@ def get_db():
         db.close()
 
 
-def job_to_api(job: Job) -> dict:
+def job_skill_names(db: Session, job_id: int | None = None) -> dict[int, list[str]]:
+    """Skill names per job, from one JOIN of job_skills to skills (optionally for one job)."""
+    query = select(JobSkill.job_id, Skill.name).join(Skill, JobSkill.skill_id == Skill.id)
+    if job_id is not None:
+        query = query.where(JobSkill.job_id == job_id)
+    names: dict[int, list[str]] = {}
+    for row_job_id, name in db.execute(query):
+        names.setdefault(row_job_id, []).append(name)
+    return names
+
+
+def profile_skill_names(db: Session) -> list[str]:
+    """My skill names, from a JOIN of profile_skills to skills."""
+    query = select(Skill.name).join(ProfileSkill, ProfileSkill.skill_id == Skill.id)
+    return sorted(db.scalars(query))
+
+
+def get_or_create_skills(db: Session, raw_names: list[str]) -> list[Skill]:
+    """Find a skills row for each name, adding rows for names not seen before."""
+    # Blank entries are dropped; lowercasing is your to_lower_case from scoring.py.
+    names = set(to_lower_case([n.strip() for n in raw_names if n.strip()]))
+    found = {s.name: s for s in db.scalars(select(Skill).where(Skill.name.in_(names)))}
+    for name in names - found.keys():
+        found[name] = Skill(name=name)
+        db.add(found[name])
+    db.flush()  # sends the INSERTs now so new skills get ids, but doesn't commit yet
+    return list(found.values())
+
+
+def job_to_api(job: Job, job_skills: list[str], my_skills: list[str]) -> dict:
     """Turn a database row (snake_case columns) into the JSON shape React expects."""
+    score, missing = fit_score(job_skills, my_skills)
     return {
         "jobId": job.id,
         "companyName": job.company_name,
@@ -58,13 +95,18 @@ def job_to_api(job: Job) -> dict:
         "jobStatus": job.job_status,
         "jobDescription": job.job_description,
         "resumeText": job.resume_text,
+        "skills": sorted(job_skills),
+        "fitScore": score,
+        "missingSkills": missing,
     }
 
 
 @app.get("/jobs")
 def list_jobs(db: Session = Depends(get_db)):
     jobs = db.scalars(select(Job).order_by(Job.id)).all()
-    return [job_to_api(job) for job in jobs]
+    skills = job_skill_names(db)
+    mine = profile_skill_names(db)
+    return [job_to_api(job, skills.get(job.id, []), mine) for job in jobs]
 
 
 @app.post("/jobs", status_code=201)
@@ -80,7 +122,7 @@ def create_job(job_in: JobIn, db: Session = Depends(get_db)):
     db.add(job)
     db.commit()
     db.refresh(job)
-    return job_to_api(job)
+    return job_to_api(job, [], profile_skill_names(db))
 
 
 @app.patch("/jobs/{job_id}")
@@ -91,4 +133,32 @@ def update_job_status(job_id: int, update: JobStatusUpdate, db: Session = Depend
     job.job_status = update.jobStatus
     db.commit()
     db.refresh(job)
-    return job_to_api(job)
+    return job_to_api(job, job_skill_names(db, job_id).get(job_id, []), profile_skill_names(db))
+
+
+@app.put("/jobs/{job_id}/skills")
+def set_job_skills(job_id: int, skills_in: SkillsIn, db: Session = Depends(get_db)):
+    """Replace a job's skills; the delete and the inserts commit together or not at all."""
+    job = db.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found")
+    skills = get_or_create_skills(db, skills_in.skills)
+    db.execute(delete(JobSkill).where(JobSkill.job_id == job_id))
+    db.add_all(JobSkill(job_id=job_id, skill_id=s.id) for s in skills)
+    db.commit()
+    return job_to_api(job, [s.name for s in skills], profile_skill_names(db))
+
+
+@app.get("/profile/skills")
+def get_profile_skills(db: Session = Depends(get_db)):
+    return {"skills": profile_skill_names(db)}
+
+
+@app.put("/profile/skills")
+def set_profile_skills(skills_in: SkillsIn, db: Session = Depends(get_db)):
+    """Replace my skills, in one transaction like set_job_skills."""
+    skills = get_or_create_skills(db, skills_in.skills)
+    db.execute(delete(ProfileSkill))
+    db.add_all(ProfileSkill(skill_id=s.id) for s in skills)
+    db.commit()
+    return {"skills": profile_skill_names(db)}
